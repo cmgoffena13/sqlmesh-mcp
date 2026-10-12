@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=4.1.0",
+    "sqlmesh[lsp]>=0.236.3",
 ]
 
 [dependency-groups]
