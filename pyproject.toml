@@ -1,0 +1,59 @@
+[project]
+name = "sqlmesh-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "30168413+cmgoffena13@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=4.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "prek>=0.5.5",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.17.0",
+    "ty>=0.0.86",
+]
+
+[tool.pytest.ini_options]
+testpaths = [ "src/tests" ]
+pythonpath = [ "." ]
+
+[tool.coverage.run]
+omit = ["src/tests/*"]
+
+[tool.coverage.report]
+fail_under = 90
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+force-exclude = true
+lint.extend-select = [
+    "A",     # Builtins
+    "AIR",   # Optional: Airflow
+    "FAST",  # Optional: FastApi
+    "DTZ",   # Datetime
+    "SIM",   # Simplify
+    "I",     # Isort Imports
+    "S",     # Bandit
+    "PT",    # Pytest
+    "B",     # BugBear
+    "N",     # Naming Conventions
+    "RUF",   # Ruff Specific Rules
+    "PTH",   # Pathlib
+    "ARG",   # Unused Args
+    "C4",    # Force Current List Comprehensions
+    "RET",   # Return Checks
+    "E501",  # Line Too Long
+    "ANN401" # No 'Any'
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["S101", "S607"]
