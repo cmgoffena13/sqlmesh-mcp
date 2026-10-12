@@ -1,0 +1,29 @@
+import asyncio
+from pathlib import Path
+
+import yaml
+
+from src.sqlparse_mcp.skill import DESCRIPTION, SKILL_INSTRUCTIONS, materialize_skill
+
+
+def test_frontmatter_description_parses() -> None:
+    frontmatter, _, body = SKILL_INSTRUCTIONS.partition("\n---\n")
+    parsed = yaml.safe_load(frontmatter.removeprefix("---\n"))
+    assert parsed == {"name": "sqlparse", "description": DESCRIPTION}
+    assert body.lstrip("\n").startswith("IMPORTANT:")
+
+
+def test_materialize_skill_writes_skill_md(tmp_path: Path) -> None:
+    config = tmp_path / "sqlparse"
+    written = materialize_skill(config)
+    assert written == config / "SKILL.md"
+    assert written.read_text(encoding="utf-8") == SKILL_INSTRUCTIONS
+
+
+def test_server_exposes_skill_resource() -> None:
+    from src.sqlparse_mcp.server import mcp
+
+    resources = asyncio.run(mcp.list_resources())
+    uris = {str(resource.uri) for resource in resources}
+    assert "skill://sqlparse/SKILL.md" in uris
+    assert "skill://sqlparse/_manifest" in uris
