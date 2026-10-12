@@ -1,14 +1,12 @@
 [project]
-name = "sqlmesh-mcp"
+name = "sqlparse"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { email = "30168413+cmgoffena13@users.noreply.github.com" }
-]
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=4.1.0",
+    "sqlglot[c]>=30.8.0",
     "sqlmesh[lsp]>=0.236.3",
 ]
 

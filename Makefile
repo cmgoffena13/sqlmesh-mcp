@@ -5,6 +5,9 @@ install:
 	uv run -- prek install
 	cp .env.example .env
 
+run:
+	uv run -- python main.py
+
 ready: lint format type-check test-cov
 
 format:
