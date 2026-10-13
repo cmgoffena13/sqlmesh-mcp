@@ -281,7 +281,7 @@ def test_sync_writes_only_existing_skill_dirs(
     assert cursor_skill.is_file()
     assert not (tmp_path / ".claude").exists()
     assert str(cursor_skill.parent) in out
-    assert "get_symbol" in cursor_skill.read_text(encoding="utf-8")
+    assert "get_directory_tree" in cursor_skill.read_text(encoding="utf-8")
 
 
 def test_sync_with_no_skill_dirs_prints_message(
@@ -329,7 +329,7 @@ def test_reload_recreates_the_index(
         assert ghost == 0
         assert (
             db.connection.execute(
-                "SELECT COUNT(*) AS c FROM symbols WHERE name = 'hello'"
+                "SELECT COUNT(*) AS c FROM files WHERE path = 'mod.sql'"
             ).fetchone()["c"]
             == 1
         )

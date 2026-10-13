@@ -11,7 +11,7 @@ def _model(name: str) -> str:
     return _MODEL.format(name=name)
 
 
-def test_project_overview_lists_directories_by_symbol_count(tmp_path: Path) -> None:
+def test_project_overview_lists_directories_by_line_count(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
     pkg = tmp_path / "pkg"
     pkg.mkdir()
@@ -48,15 +48,19 @@ def test_project_overview_lists_directories_by_symbol_count(tmp_path: Path) -> N
     assert "pkg/worker.sql" not in out
 
 
-def test_project_overview_with_no_symbols(tmp_path: Path) -> None:
-    (tmp_path / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
-    (tmp_path / "notes.md").write_text("no sql\n", encoding="utf-8")
-    db = CodeDB(tmp_path)
+def test_project_overview_with_only_test_files(tmp_path: Path) -> None:
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / ".gitignore").write_text("", encoding="utf-8")
+    tests = project / "tests"
+    tests.mkdir()
+    (tests / "test_one.sql").write_text("SELECT 1 AS id\n", encoding="utf-8")
+    db = CodeDB(project)
     try:
-        CodeProcessor(db, tmp_path).process()
+        CodeProcessor(db, project).process()
         out = get_project_overview(db)
     finally:
         db.close()
 
-    assert "No symbols." in out
+    assert "No files." in out
     assert "Entrypoints" not in out

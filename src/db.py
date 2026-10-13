@@ -7,9 +7,6 @@ from src.utils import db_path_for_index_root, get_sql_parse_config_dir
 TABLE_BATCH_MAP = {
     "directories",
     "files",
-    "symbols",
-    "imports",
-    "symbol_references",
 }
 
 
@@ -104,8 +101,7 @@ class CodeDB:
 
     def get_files_snapshot(self) -> dict[Path, dict[str, Any]]:
         cursor = self.connection.execute(
-            "SELECT id, directory_id, path, content_hash, line_count, "
-            "symbol_count, is_test FROM files"
+            "SELECT id, directory_id, path, content_hash, line_count, is_test FROM files"
         )
         return {
             Path(row["path"]): {
@@ -114,7 +110,6 @@ class CodeDB:
                 "seen": False,
                 "content_hash": row["content_hash"],
                 "line_count": row["line_count"],
-                "symbol_count": row["symbol_count"],
                 "is_test": bool(row["is_test"]),
             }
             for row in cursor
@@ -124,136 +119,9 @@ class CodeDB:
         file_ids = [file["id"] for file in files.values() if not file["seen"]]
         self.delete_ids("files", file_ids)
 
-    def get_symbols_snapshot(self, file_id: int) -> dict[tuple[str, str], dict[str, Any]]:
-        # NOTE: combine symbol_bases and symbols into a single query
-        query = """
-            SELECT
-                s.id,
-                s.qualified_name AS name,
-                s.kind,
-                s.line_start,
-                s.line_end,
-                sb.base_qualified_name
-            FROM symbols AS s
-            LEFT JOIN symbol_bases AS sb
-                ON sb.symbol_id = s.id
-            WHERE s.file_id = ?
-            ORDER BY s.id, sb.base_qualified_name
-            """
-        rows = self.connection.execute(query, (file_id,)).fetchall()
-        by_key: dict[tuple[str, str], dict[str, Any]] = {}
-        for row in rows:
-            key = (row["name"], row["kind"])
-            entry: dict[str, Any] | None = by_key.get(key)
-            if entry is None:
-                entry = {
-                    "id": row["id"],
-                    "line_start": row["line_start"],
-                    "line_end": row["line_end"],
-                    "base_qualified_names": [],
-                    "seen": False,
-                }
-                by_key[key] = entry
-            base_qn = row["base_qualified_name"]
-            if base_qn:
-                names: list[str] = entry["base_qualified_names"]
-                names.append(base_qn)
-        return {
-            key: {
-                **entry,
-                "base_qualified_names": tuple(entry["base_qualified_names"]),
-            }
-            for key, entry in by_key.items()
-        }
-
-    def delete_symbols(self, symbols_snapshot: dict[tuple[str, str], dict[str, Any]]) -> None:
-        symbol_ids = [symbol["id"] for symbol in symbols_snapshot.values() if not symbol["seen"]]
-        if not symbol_ids:
-            return
-        with self.connection:
-            ids_placeholder = ",".join(["?"] * len(symbol_ids))
-            self.connection.execute(
-                f"DELETE FROM symbol_bases WHERE symbol_id IN ({ids_placeholder})",  # noqa: S608
-                symbol_ids,
-            )
-            self.connection.execute(
-                f"DELETE FROM symbols WHERE id IN ({ids_placeholder})",  # noqa: S608
-                symbol_ids,
-            )
-            self.connection.execute(
-                f"DELETE FROM symbols_fts WHERE rowid IN ({ids_placeholder})",  # noqa: S608
-                symbol_ids,
-            )
-
-    def get_symbol_references_snapshot(
-        self, file_id: int
-    ) -> dict[tuple[str, str, int, int], dict[str, Any]]:
-        query = """
-        SELECT
-        id,
-        ref_symbol_qualified_name AS name,
-        ref_kind,
-        source_line,
-        source_column,
-        source_symbol_id,
-        context
-        FROM symbol_references
-        WHERE source_file_id = ?
-        """
-        cursor = self.connection.execute(query, (file_id,))
-        return {
-            (row["name"], row["ref_kind"], row["source_line"], row["source_column"]): {
-                "id": row["id"],
-                "source_line": row["source_line"],
-                "source_column": row["source_column"],
-                "source_symbol_id": row["source_symbol_id"],
-                "context": row["context"],
-                "seen": False,
-            }
-            for row in cursor
-        }
-
-    def delete_symbol_references(
-        self,
-        symbol_references_snapshot: dict[tuple[str, str, int, int], dict[str, Any]],
-    ) -> None:
-        symbol_reference_ids = [
-            symbol_reference["id"]
-            for symbol_reference in symbol_references_snapshot.values()
-            if not symbol_reference["seen"]
-        ]
-        self.delete_ids("symbol_references", symbol_reference_ids)
-
-    def get_imports_snapshot(self, file_id: int) -> dict[tuple[str, str], dict[str, Any]]:
-        query = """
-        SELECT
-        id,
-        import_path,
-        imported_symbol,
-        line_number
-        FROM imports
-        WHERE file_id = ?
-        """
-        cursor = self.connection.execute(query, (file_id,))
-        return {
-            (row["import_path"], row["imported_symbol"]): {
-                "id": row["id"],
-                "line_number": row["line_number"],
-                "seen": False,
-            }
-            for row in cursor
-        }
-
-    def delete_imports(self, imports_snapshot: dict[tuple[str, str], dict[str, Any]]) -> None:
-        import_ids = [i["id"] for i in imports_snapshot.values() if not i["seen"]]
-        self.delete_ids("imports", import_ids)
-
     def bulk_insert(self, db_batches: dict[str, list[dict[str, Any]]]) -> None:
         directories = db_batches["directories"]
         files = db_batches["files"]
-        symbols = db_batches["symbols"]
-        symbol_references = db_batches["symbol_references"]
-        imports = db_batches["imports"]
         with self.connection:
             self.connection.executemany(
                 """
@@ -268,132 +136,11 @@ class CodeDB:
                 """
                 INSERT OR REPLACE INTO files
                 (id, directory_id, name, path, normalized_path, language,
-                 content_hash, line_count, symbol_count, is_test)
+                 content_hash, line_count, is_test)
                 VALUES (:id, :directory_id, :name, :path, :normalized_path,
-                        :language, :content_hash, :line_count, :symbol_count,
-                        :is_test)
+                        :language, :content_hash, :line_count, :is_test)
                 """,
                 files,
-            )
-
-            base_rows: list[dict[str, Any]] = []
-            for symbol in symbols:
-                for base_qn in symbol.pop("base_qualified_names", ()):
-                    base_rows.append(
-                        {
-                            "symbol_id": symbol["id"],
-                            "base_qualified_name": base_qn,
-                        }
-                    )
-
-            self.connection.executemany(
-                """
-                INSERT OR REPLACE INTO symbols
-                (id, file_id, parent_id, name, qualified_name, kind, line_start,
-                 line_end, line_count, signature, docstring, modifiers, language,
-                 is_test)
-                VALUES (:id, :file_id, :parent_id, :name, :qualified_name, :kind,
-                        :line_start, :line_end, :line_count, :signature,
-                        :docstring, :modifiers, :language, :is_test)
-                """,
-                symbols,
-            )
-            if symbols:
-                symbol_ids = [symbol["id"] for symbol in symbols]
-                placeholder = ",".join(["?"] * len(symbol_ids))
-                self.connection.execute(
-                    f"DELETE FROM symbol_bases WHERE symbol_id IN ({placeholder})",  # noqa: S608
-                    symbol_ids,
-                )
-            if base_rows:
-                self.connection.executemany(
-                    """
-                    INSERT INTO symbol_bases (base_qualified_name, symbol_id)
-                    VALUES (:base_qualified_name, :symbol_id)
-                    """,
-                    base_rows,
-                )
-
-            fts_symbols = [
-                (
-                    s["id"],
-                    s["qualified_name"],
-                    s["docstring"],
-                    s["signature"],
-                    s["modifiers"],
-                )
-                for s in symbols
-            ]
-            self.connection.executemany(
-                """
-                INSERT OR REPLACE INTO symbols_fts
-                (rowid, qualified_name, docstring, signature, modifiers)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                fts_symbols,
-            )
-
-            self.connection.executemany(
-                """
-                INSERT INTO symbol_references_staging
-                (id, ref_symbol_name, ref_symbol_qualified_name, source_file_id,
-                 source_symbol_id, source_line, source_column, ref_kind, context)
-                VALUES (:id, :ref_symbol_name, :ref_symbol_qualified_name,
-                        :source_file_id, :source_symbol_id, :source_line,
-                        :source_column, :ref_kind, :context)
-                """,
-                symbol_references,
-            )
-
-            self.connection.executemany(
-                """
-                INSERT OR REPLACE INTO imports
-                (id, file_id, import_path, imported_symbol, alias, line_number,
-                 import_type, import_scope, signature)
-                VALUES (:id, :file_id, :import_path, :imported_symbol, :alias,
-                        :line_number, :import_type, :import_scope, :signature)
-                """,
-                imports,
-            )
-
-    def resolve_symbol_references(self) -> None:
-        with self.connection:
-            self.connection.execute("""
-            INSERT INTO symbol_references
-            (id, ref_symbol_id, ref_symbol_file_id, ref_symbol_name,
-             ref_symbol_qualified_name, source_file_id, source_symbol_id,
-             source_line, source_column, ref_kind, context)
-            SELECT
-            s.id,
-            sy.id AS ref_symbol_id,
-            sy.file_id AS ref_symbol_file_id,
-            s.ref_symbol_name,
-            s.ref_symbol_qualified_name,
-            s.source_file_id,
-            s.source_symbol_id,
-            s.source_line,
-            s.source_column,
-            s.ref_kind,
-            s.context
-            FROM symbol_references_staging AS s
-            INNER JOIN symbols AS sy
-                ON s.ref_symbol_qualified_name = sy.qualified_name
-            WHERE NOT EXISTS (SELECT 1 FROM symbol_references AS sr WHERE sr.id = s.id);
-            """)
-            self.connection.execute("DELETE FROM symbol_references_staging;")
-
-    def resolve_imports(self, now: int, last_incremental: int) -> None:
-        with self.connection:
-            self.connection.execute(
-                """
-                UPDATE imports
-                SET imported_file_id = f.id,
-                    watermark = ?
-                FROM files AS f
-                WHERE f.normalized_path = imports.import_path
-                    AND imports.watermark BETWEEN ? AND ?
-                """,
-                (last_incremental, now, last_incremental),
             )
 
     def close(self):

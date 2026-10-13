@@ -9,24 +9,15 @@ from fastmcp import Context, FastMCP
 from src.db import CodeDB
 from src.processor import CodeProcessor
 from src.sqlparse_mcp.directory_tree import get_directory_tree as run_directory_tree
-from src.sqlparse_mcp.file_overview import get_file_overview as run_file_overview
-from src.sqlparse_mcp.find_importers import find_importers as run_find_importers
-from src.sqlparse_mcp.find_subclasses import find_subclasses as run_find_subclasses
 from src.sqlparse_mcp.project_overview import (
     get_project_overview as run_project_overview,
 )
-from src.sqlparse_mcp.search_symbols import search_symbols as run_symbol_search
 from src.sqlparse_mcp.skill import DESCRIPTION, materialize_skill, skill_manifest
-from src.sqlparse_mcp.symbol_at_lines import get_symbol_at_lines as run_symbol_at_lines
-from src.sqlparse_mcp.symbol_context import get_symbol_context as run_symbol_context
-from src.sqlparse_mcp.symbol_references import (
-    get_symbol_references as run_symbol_references,
-)
 from src.utils import get_sql_parse_config_dir
 
 _INSTRUCTIONS = """\
 sqlparse tools read an up-to-date view of SQLMesh projects.
-Utilize the ``sqlparse`` skill for guided exploration workflows.
+Utilize the ``sqlparse`` skill for project structure.
 """
 
 
@@ -83,8 +74,8 @@ def _processor(ctx: Context) -> CodeProcessor:
 @mcp.tool()
 def get_project_overview(ctx: Context) -> str:
     """
-    Return the top ten directories by symbol count.
-    Directories are (lines L, symbols S, files F).
+    Return the top ten directories by line count.
+    Directories are (lines L, files F).
     """
     return _processor(ctx).run_query(run_project_overview)
 
@@ -92,115 +83,10 @@ def get_project_overview(ctx: Context) -> str:
 @mcp.tool()
 def get_directory_tree(ctx: Context, path: str | None = None) -> str:
     """
-    Return the repo's directory/file tree. Files are (lines L, symbols S).
+    Return the repo's directory/file tree. Files are (lines L).
     Optional ``path`` scopes to one directory tree (exact path).
     """
     return _processor(ctx).run_query(lambda db: run_directory_tree(db, path=path))
-
-
-@mcp.tool()
-def get_file_overview(file_path: str, ctx: Context) -> str:
-    """
-    Return imports and a nested symbol tree for one file with line numbers.
-    Use ``get_symbol`` for symbol definitions.
-    """
-    path = file_path.strip()
-    return _processor(ctx).run_query(lambda db: run_file_overview(db, path))
-
-
-@mcp.tool()
-def search_symbols(
-    query: str,
-    ctx: Context,
-    limit: int = 10,
-    include_tests: bool = False,
-) -> str:
-    """
-    Full-text search across all symbols (``qualified_name``, signatures, docstrings, and modifiers),
-    grouped by file. Results are ordered #1, #2, #3 by relevance.
-
-    Excludes test file symbols by default; set ``include_tests`` to include them.
-    Use multiple keywords, separated by spaces, to narrow your search (AND).
-    Example input queries: ``loader``, ``dialect format``
-    """
-    return _processor(ctx).run_query(
-        lambda db: run_symbol_search(
-            db,
-            query,
-            limit,
-            include_tests=include_tests,
-        )
-    )
-
-
-@mcp.tool()
-def get_symbol(qualified_name: str, ctx: Context) -> str:
-    """
-    Return the symbol definition with line numbers and aggregated count of reference sites
-    (calls, accesses, type annotations).
-
-    References do not follow multi-hop attribute access (obj.field.method) and untyped locals.
-    Use ``get_symbol_references`` for detailed call, access, and type-annotation sites.
-    """
-    name = qualified_name.strip()
-    return _processor(ctx).run_query(lambda db: run_symbol_context(db, name))
-
-
-@mcp.tool()
-def get_symbol_at_lines(
-    file_path: str,
-    line_start: int,
-    ctx: Context,
-    line_end: int | None = None,
-) -> str:
-    """
-    Return the qualified name of the symbol that covers a line range in a file.
-
-    ``line_end`` defaults to ``line_start``. When several symbols cover the range,
-    the one with the smallest span is returned (a method inside a class, not the class).
-    A range that crosses two symbols and sits inside neither returns both.
-    """
-    path = file_path.strip()
-    return _processor(ctx).run_query(lambda db: run_symbol_at_lines(db, path, line_start, line_end))
-
-
-@mcp.tool()
-def get_symbol_references(qualified_name: str, ctx: Context, include_tests: bool = False) -> str:
-    """
-    Return reference sites (calls, accesses, type annotations) for a symbol, grouped by file,
-    with line numbers and which symbols they happen in.
-
-    References do not follow multi-hop attribute access (obj.field.method) and untyped locals.
-    Excludes test files by default; set ``include_tests`` to include them.
-    """
-    name = qualified_name.strip()
-    return _processor(ctx).run_query(
-        lambda db: run_symbol_references(db, name, include_tests=include_tests)
-    )
-
-
-@mcp.tool()
-def find_subclasses(qualified_name: str, ctx: Context, include_tests: bool = False) -> str:
-    """
-    Return classes that directly inherit from a given class, grouped by file.
-    Excludes test files by default; set ``include_tests`` to include them.
-    """
-    name = qualified_name.strip()
-    return _processor(ctx).run_query(
-        lambda db: run_find_subclasses(db, name, include_tests=include_tests)
-    )
-
-
-@mcp.tool()
-def find_importers(file_path: str, ctx: Context, include_tests: bool = False) -> str:
-    """
-    Return files that import a given module file.
-    Excludes test files by default; set ``include_tests`` to include them.
-    """
-    path = file_path.strip()
-    return _processor(ctx).run_query(
-        lambda db: run_find_importers(db, path, include_tests=include_tests)
-    )
 
 
 def main() -> None:

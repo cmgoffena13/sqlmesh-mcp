@@ -15,9 +15,6 @@ from src.parsers.factory import FILE_EXTENSION_MAPPING, ParserFactory
 
 T = TypeVar("T")
 
-_SQL_ROOTS = frozenset({"models", "audits", "macros"})
-_BLOCK_SYMBOL_KINDS = frozenset({"model", "audit"})
-
 
 def file_path_is_test(relative_path: Path) -> bool:
     """True for conventional SQLMesh test files, not a directory named ``test``."""
@@ -73,10 +70,8 @@ class CodeProcessor:
                 "seen": True,
             }
 
-    def _normalize_path(self, path: Path, language: str | None = None) -> str:
+    def _normalize_path(self, path: Path) -> str:
         parts = list(path.with_suffix("").parts)
-        if language == "sql" and parts and parts[0] in _SQL_ROOTS:
-            parts = parts[1:]
         return ".".join(parts).lower()
 
     def _process_file(self, file_name: str, directory_path: Path, full: bool) -> None:
@@ -95,11 +90,9 @@ class CodeProcessor:
         if existed:
             file_id = self.files_snapshot[file_relative_path]["id"]
             prior_hash = self.files_snapshot[file_relative_path]["content_hash"]
-            prior_symbol_count = self.files_snapshot[file_relative_path]["symbol_count"]
         else:
             file_id = self.assigner.reserve("files", 1)[0]
             prior_hash = None
-            prior_symbol_count = 0
 
         try:
             file_bytes = file_path.read_bytes()
@@ -116,55 +109,31 @@ class CodeProcessor:
             "directory_id": directory_id,
             "name": file_name,
             "path": str(file_relative_path),
-            "normalized_path": self._normalize_path(file_relative_path, language=lang),
+            "normalized_path": self._normalize_path(file_relative_path),
             "language": lang,
             "content_hash": file_hash,
             "line_count": line_count,
-            "symbol_count": prior_symbol_count,
             "is_test": is_test,
         }
         if not existed or prior_hash != file_hash:
             self.db_batches["files"].append(file_row)
-        snap = {
+        self.files_snapshot[file_relative_path] = {
             "id": file_id,
             "directory_id": directory_id,
             "seen": True,
             "content_hash": file_hash,
             "line_count": line_count,
-            "symbol_count": prior_symbol_count,
             "is_test": is_test,
         }
-        self.files_snapshot[file_relative_path] = snap
 
-        # NOTE: Two Gateway Checks for parsing: 1. Time 2. Content Hash.
         if full or (file_last_modified > self.last_incremental and file_hash != prior_hash):
             if file_extension not in FILE_EXTENSION_MAPPING:
                 self.files_skipped += 1
                 return
-
             parser = ParserFactory.get_parser(
                 FILE_EXTENSION_MAPPING[file_extension], self.assigner, self.db
             )
-            module_qn = self._normalize_path(file_relative_path, language=lang)
-            symbols, imports, references = parser.parse(
-                file_id, file_bytes, module_qn=module_qn, is_package=False
-            )
-            declared = next(
-                (
-                    symbol["qualified_name"]
-                    for symbol in symbols
-                    if symbol["kind"] in _BLOCK_SYMBOL_KINDS and symbol["parent_id"] is None
-                ),
-                None,
-            )
-            if declared:
-                file_row["normalized_path"] = declared
-            n = len(symbols)
-            file_row["symbol_count"] = n
-            snap["symbol_count"] = n
-            self.db_batches["symbols"].extend(symbols)
-            self.db_batches["imports"].extend(imports)
-            self.db_batches["symbol_references"].extend(references)
+            parser.parse(file_id, file_bytes)
             self.files_indexed += 1
             self._insert_batch()
 
@@ -183,10 +152,6 @@ class CodeProcessor:
 
         self.db.bulk_insert(self.db_batches)
         self.db_batches = self._new_batches()
-
-    def _bulk_operations(self, now: int, last_incremental: int) -> None:
-        self.db.resolve_symbol_references()
-        self.db.resolve_imports(now, last_incremental)
 
     def _reset_run_state(self) -> None:
         self.files_skipped = 0
@@ -208,7 +173,6 @@ class CodeProcessor:
 
     def _process_unlocked(self, full: bool = False) -> None:
         self._reset_run_state()
-        start_epoch = int(time.time())
         start_time = time.time()
         for directory_path, directory_names, file_names in os.walk(self.root):
             directory_path = Path(directory_path)
@@ -255,7 +219,6 @@ class CodeProcessor:
             self.last_incremental = end_epoch
 
         self.db.set_watermark(self.last_full_parse, self.last_incremental)
-        self._bulk_operations(start_epoch, self.last_incremental)
 
         duration = time_now - start_time
         duration_ms = duration * 1000

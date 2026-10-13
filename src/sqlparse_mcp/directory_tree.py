@@ -10,8 +10,7 @@ SELECT
     id,
     parent_id AS parent_id,
     name,
-    NULL AS line_count,
-    NULL AS symbol_count
+    NULL AS line_count
 FROM directories
 UNION ALL
 SELECT
@@ -19,8 +18,7 @@ SELECT
     id,
     directory_id AS parent_id,
     name,
-    line_count,
-    symbol_count
+    line_count
 FROM files
 """
 
@@ -33,8 +31,7 @@ SELECT
     id,
     parent_id AS parent_id,
     name,
-    NULL AS line_count,
-    NULL AS symbol_count
+    NULL AS line_count
 FROM directories
 WHERE path >= ? AND path < ?
 UNION ALL
@@ -43,8 +40,7 @@ SELECT
     id,
     directory_id AS parent_id,
     name,
-    line_count,
-    symbol_count
+    line_count
 FROM files
 WHERE path >= ? AND path < ?
 """
@@ -79,11 +75,7 @@ def _lines_under_parent(children_by_parent_id, parent_key, branch_prefix):
         if is_directory:
             display_name = row["name"] + "/"
         else:
-            display_name = file_label(
-                row["name"],
-                row["line_count"] or 0,
-                row["symbol_count"] if row["symbol_count"] is not None else 0,
-            )
+            display_name = file_label(row["name"], row["line_count"] or 0)
         lines.append(f"{branch_prefix}{connector}{display_name}")
         if is_directory:
             continuation = "    " if is_last_child else "│   "
@@ -94,7 +86,7 @@ def _lines_under_parent(children_by_parent_id, parent_key, branch_prefix):
 
 def get_directory_tree(db: CodeDB, path: str | None = None) -> str:
     """
-    Return the directory/file tree with line and symbol counts.
+    Return the directory/file tree with line counts.
 
     Optional ``path`` scopes to one directory tree (exact path).
     """
