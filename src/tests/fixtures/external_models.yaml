@@ -1,4 +1,4 @@
-- name: raw.demographics
+- name: raw_db.raw.demographics
   description: Table containing demographics information
   columns:
     customer_id: int

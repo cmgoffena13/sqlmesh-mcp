@@ -1,8 +1,23 @@
-test_order_items:
-  model: sushi.order_items
+test_example_full_model:
+  model: sqlmesh_example.full_model
   inputs:
-    sushi.orders:
-      - id: 1
+    sqlmesh_example.incremental_model:
+        rows:
+        - id: 1
+          item_id: 1
+        - id: 2
+          item_id: 1
+        - id: 3
+          item_id: 2
   outputs:
+    ctes:
+      filtered_orders_cte:
+        rows:
+          - id: 1
+            item_id: 1
+          - id: 2
+            item_id: 1
     query:
-      - id: 1
+      rows:
+      - item_id: 1
+        num_orders: 2
