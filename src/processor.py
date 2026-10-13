@@ -117,6 +117,7 @@ class CodeProcessor:
         }
         if not existed or prior_hash != file_hash:
             self.db_batches["files"].append(file_row)
+
         self.files_snapshot[file_relative_path] = {
             "id": file_id,
             "directory_id": directory_id,
