@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.db import CodeDB
 from src.git_utils import path_spec_for_indexing, relative_path_is_ignored
 from src.processor import CodeProcessor
+from src.tests.conftest import write_sqlmesh_config
 
 
 def test_relative_path_rejects_absolute() -> None:
@@ -62,6 +63,7 @@ def test_processor_prunes_ignored_dirs_and_files(tmp_path: Path) -> None:
         "__pycache__/\n*.pyc\n",
         encoding="utf-8",
     )
+    write_sqlmesh_config(tmp_path)
     pkg = tmp_path / "pkg"
     pkg.mkdir()
     (pkg / "keep.py").write_text("x = 1\n", encoding="utf-8")

@@ -5,10 +5,12 @@ from pathlib import Path
 from src.db import CodeDB
 from src.processor import CodeProcessor
 from src.sqlparse_mcp.directory_tree import get_directory_tree
+from src.tests.conftest import write_sqlmesh_config
 
 
 def _index(root: Path) -> None:
     (root / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
+    write_sqlmesh_config(root)
     pkg = root / "pkg"
     core = pkg / "core"
     core.mkdir(parents=True)

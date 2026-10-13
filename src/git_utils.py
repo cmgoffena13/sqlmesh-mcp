@@ -17,6 +17,7 @@ INDEX_ALWAYS_IGNORE_NAMES = frozenset(
         ".mypy_cache",
         ".vscode",
         ".cache",
+        "logs",
     }
 )
 

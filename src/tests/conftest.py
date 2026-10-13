@@ -1,7 +1,17 @@
+import os
 import sys
 from pathlib import Path
 
+os.environ["MAX_FORK_WORKERS"] = "1"
+
 import pytest
+
+_SQLMESH_CONFIG = Path(__file__).resolve().parent / "fixtures" / "config.yaml"
+
+
+def write_sqlmesh_config(root: Path) -> None:
+    (root / "config.yaml").write_text(_SQLMESH_CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+
 
 # Ensure repository root is importable (so `import src.*` works)
 REPO_ROOT = Path(__file__).resolve().parents[2]

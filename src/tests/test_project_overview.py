@@ -3,6 +3,7 @@ from pathlib import Path
 from src.db import CodeDB
 from src.processor import CodeProcessor
 from src.sqlparse_mcp.project_overview import get_project_overview
+from src.tests.conftest import write_sqlmesh_config
 
 _MODEL = "MODEL (\n  name {name},\n  kind FULL\n);\nSELECT 1 AS id\n"
 
@@ -13,6 +14,7 @@ def _model(name: str) -> str:
 
 def test_project_overview_lists_directories_by_line_count(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
+    write_sqlmesh_config(tmp_path)
     pkg = tmp_path / "pkg"
     pkg.mkdir()
     (pkg / "cli.sql").write_text(_model("pkg.cli"), encoding="utf-8")
@@ -51,7 +53,8 @@ def test_project_overview_lists_directories_by_line_count(tmp_path: Path) -> Non
 def test_project_overview_with_only_test_files(tmp_path: Path) -> None:
     project = tmp_path / "proj"
     project.mkdir()
-    (project / ".gitignore").write_text("", encoding="utf-8")
+    (project / ".gitignore").write_text("config.yaml\n", encoding="utf-8")
+    write_sqlmesh_config(project)
     tests = project / "tests"
     tests.mkdir()
     (tests / "test_one.sql").write_text("SELECT 1 AS id\n", encoding="utf-8")

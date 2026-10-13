@@ -12,6 +12,7 @@ from src.assigner import GlobalIDAssigner
 from src.db import TABLE_BATCH_MAP, CodeDB
 from src.git_utils import path_spec_for_indexing, relative_path_is_ignored
 from src.parsers.factory import FILE_EXTENSION_MAPPING, ParserFactory
+from src.sqlmesh_project import load_sqlmesh_context
 
 T = TypeVar("T")
 
@@ -31,6 +32,9 @@ class CodeProcessor:
         self.db = db
         self.assigner = GlobalIDAssigner(db)
         self.root = root.resolve()
+        self.context = load_sqlmesh_context(self.root)
+        self.dialect = self.context.default_dialect
+        self.catalog = self.context.default_catalog
         self._index_ignore_spec = path_spec_for_indexing(self.root)
         self.last_full_parse, self.last_incremental = self.db.get_watermark()
         self.db_batch_size = 1000

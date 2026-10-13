@@ -2,6 +2,7 @@ from pathlib import Path
 
 from src.db import CodeDB
 from src.processor import CodeProcessor, file_path_is_test
+from src.tests.conftest import write_sqlmesh_config
 
 
 def test_file_path_is_test_rules() -> None:
@@ -16,6 +17,7 @@ def test_file_path_is_test_rules() -> None:
 
 def test_file_is_test_not_promoted_from_symbol_names(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").write_text("# fixture\n", encoding="utf-8")
+    write_sqlmesh_config(tmp_path)
     models = tmp_path / "models" / "test"
     models.mkdir(parents=True)
     (models / "definition.sql").write_text(

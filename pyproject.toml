@@ -37,7 +37,7 @@ fail_under = 90
 
 [tool.ruff]
 target-version = "py312"
-extend-exclude = ["src/tests/files_to_parse/"]
+extend-exclude = ["src/tests/files_to_parse/", "example/"]
 line-length = 100
 force-exclude = true
 lint.extend-select = [
@@ -65,5 +65,5 @@ lint.extend-select = [
 "_assertions.py" = ["S101"]
 
 [tool.ty.src]
-exclude = ["src/tests/files_to_parse/"]
+exclude = ["src/tests/files_to_parse/", "example/"]
 

@@ -1,0 +1,7 @@
+gateways:
+  duckdb:
+    connection:
+      type: duckdb
+default_gateway: duckdb
+model_defaults:
+  dialect: duckdb

@@ -2,10 +2,12 @@ from pathlib import Path
 
 from src.db import CodeDB
 from src.processor import CodeProcessor
+from src.tests.conftest import write_sqlmesh_config
 
 
 def _index(root: Path) -> CodeDB:
     (root / ".gitignore").write_text("# test\n", encoding="utf-8")
+    write_sqlmesh_config(root)
     db = CodeDB(root)
     CodeProcessor(db, root).process()
     return db

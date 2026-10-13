@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.app import main
+from src.tests.conftest import write_sqlmesh_config
 from src.utils import get_version
 
 
@@ -301,6 +302,7 @@ def test_reload_recreates_the_index(
     tmp_path: Path,
 ) -> None:
     (tmp_path / ".gitignore").write_text("# fixture\n", encoding="utf-8")
+    write_sqlmesh_config(tmp_path)
     (tmp_path / "mod.sql").write_text(
         "MODEL (name mod.hello, kind FULL);\nSELECT 1 AS id\n",
         encoding="utf-8",

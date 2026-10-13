@@ -1,0 +1,9 @@
+gateways:
+  local:
+    connection:
+      type: duckdb
+    model_defaults:
+      dialect: postgres
+default_gateway: local
+model_defaults:
+  dialect: duckdb

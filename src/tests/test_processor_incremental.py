@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.db import CodeDB
 from src.parsers.sql_lang import SqlParser
 from src.processor import CodeProcessor
+from src.tests.conftest import write_sqlmesh_config
 from src.utils import db_path_for_index_root
 
 NESTED_PKG_MOD = """\
@@ -66,6 +67,7 @@ def _db_counts(tmp: Path) -> dict:
 def _write_nested_fixture(tmp: Path) -> None:
     # `path_spec_for_indexing` requires a root `.gitignore` to exist.
     (tmp / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
+    write_sqlmesh_config(tmp)
     pkg = tmp / "pkg"
     pkg.mkdir(parents=True, exist_ok=True)
     (pkg / "mod.sql").write_text(NESTED_PKG_MOD, encoding="utf-8")
@@ -122,6 +124,7 @@ def test_incremental_mutation_updates_counts_and_deletes(tmp_path: Path) -> None
 
 def test_extensionless_broken_symlink_is_not_a_skipped_source(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").write_text("# test fixture\n", encoding="utf-8")
+    write_sqlmesh_config(tmp_path)
     (tmp_path / "mod.sql").write_text(
         "MODEL (name mod.one, kind FULL);\nSELECT 1 AS id\n",
         encoding="utf-8",
@@ -153,7 +156,7 @@ def test_full_reparses_sql_and_incremental_parses_changed_files(
     processor = CodeProcessor(db1, tmp_path)
     processor.process(full=True)
     assert len(calls) == 1
-    assert processor.files_indexed == 1
+    assert processor.files_indexed == 2
     assert processor.files_skipped >= 1
 
     calls.clear()
