@@ -47,7 +47,9 @@ CREATE TABLE IF NOT EXISTS symbols (
     line_count      INTEGER NOT NULL,
     data_type       TEXT,
     position_index  INTEGER,
+    signature       TEXT, /* python signatures */
     docstring       TEXT, /* model description, column description, macro description */
+    modifiers       TEXT, /* python modifiers */
     language        TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS symbols_file_id_index ON symbols (file_id);

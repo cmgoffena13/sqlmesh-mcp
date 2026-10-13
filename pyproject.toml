@@ -9,6 +9,7 @@ dependencies = [
     "fastmcp>=4.1.0",
     "nuitka[onefile]>=4.0.8",
     "pathspec>=1.1.1",
+    "pyyaml>=6.0.3",
     "sqlglot~=30.8.0",
     "sqlmesh>=0.236.3",
     "xxhash>=4.0.1",

@@ -14,7 +14,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.db import CodeDB
-from src.parsers.base import ParsedSql
 from src.parsers.sql_lang import SqlParser
 from src.processor import CodeProcessor
 from src.utils import db_path_for_index_root
@@ -143,9 +142,9 @@ def test_full_reparses_sql_and_incremental_parses_changed_files(
 ) -> None:
     calls: list[int] = []
 
-    def record(_self: SqlParser, file_id: int, file_bytes: bytes) -> ParsedSql:
+    def record(_self: SqlParser, _file_id: int, file_bytes: bytes) -> tuple[list[dict], list[dict]]:
         calls.append(len(file_bytes))
-        return ParsedSql(file_id=file_id, statement_count=0, model_names=[])
+        return [], []
 
     monkeypatch.setattr(SqlParser, "parse", record)
     _write_nested_fixture(tmp_path)

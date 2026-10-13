@@ -1,13 +1,5 @@
-from pydantic import BaseModel
-
 from src.assigner import GlobalIDAssigner
 from src.db import CodeDB
-
-
-class ParsedSql(BaseModel):
-    file_id: int
-    statement_count: int
-    model_names: list[str]
 
 
 class ParserBase:
@@ -15,5 +7,5 @@ class ParserBase:
         self.assigner = assigner
         self.db = db
 
-    def parse(self, file_id: int, file_bytes: bytes) -> ParsedSql:
+    def parse(self, file_id: int, file_bytes: bytes) -> tuple[list[dict], list[dict]]:
         raise NotImplementedError

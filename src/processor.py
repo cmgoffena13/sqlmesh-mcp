@@ -21,9 +21,9 @@ def file_path_is_test(relative_path: Path) -> bool:
     if "tests" in relative_path.parts:
         return True
     name = relative_path.name
-    if name.startswith("test_") and name.endswith(".sql"):
+    if name.startswith("test_") and name.endswith((".sql", ".yaml", ".yml")):
         return True
-    return name.endswith("_test.sql")
+    return name.endswith(("_test.sql", "_test.yaml", "_test.yml"))
 
 
 class CodeProcessor:
@@ -90,9 +90,11 @@ class CodeProcessor:
         if existed:
             file_id = self.files_snapshot[file_relative_path]["id"]
             prior_hash = self.files_snapshot[file_relative_path]["content_hash"]
+            prior_symbol_count = self.files_snapshot[file_relative_path]["symbol_count"]
         else:
             file_id = self.assigner.reserve("files", 1)[0]
             prior_hash = None
+            prior_symbol_count = 0
 
         try:
             file_bytes = file_path.read_bytes()
@@ -113,19 +115,22 @@ class CodeProcessor:
             "language": lang,
             "content_hash": file_hash,
             "line_count": line_count,
+            "symbol_count": 0,
             "is_test": is_test,
         }
         if not existed or prior_hash != file_hash:
             self.db_batches["files"].append(file_row)
 
-        self.files_snapshot[file_relative_path] = {
+        snap = {
             "id": file_id,
             "directory_id": directory_id,
             "seen": True,
             "content_hash": file_hash,
             "line_count": line_count,
+            "symbol_count": prior_symbol_count,
             "is_test": is_test,
         }
+        self.files_snapshot[file_relative_path] = snap
 
         if full or (file_last_modified > self.last_incremental and file_hash != prior_hash):
             if file_extension not in FILE_EXTENSION_MAPPING:
@@ -134,7 +139,11 @@ class CodeProcessor:
             parser = ParserFactory.get_parser(
                 FILE_EXTENSION_MAPPING[file_extension], self.assigner, self.db
             )
-            parser.parse(file_id, file_bytes)
+            symbols, _ = parser.parse(file_id, file_bytes)
+            n = len(symbols)
+            file_row["symbol_count"] = n
+            snap["symbol_count"] = n
+            self.db_batches["symbols"].extend(symbols)
             self.files_indexed += 1
             self._insert_batch()
 

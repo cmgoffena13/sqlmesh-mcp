@@ -4,15 +4,19 @@ from src.assigner import GlobalIDAssigner
 from src.db import CodeDB
 from src.parsers.base import ParserBase
 from src.parsers.sql_lang import SqlParser
+from src.parsers.yaml_lang import YamlParser
 
 FILE_EXTENSION_MAPPING = {
     ".sql": "sql",
+    ".yaml": "yaml",
+    ".yml": "yaml",
 }
 
 
 class ParserFactory:
     parsers: ClassVar[dict[str, type[ParserBase]]] = {
         "sql": SqlParser,
+        "yaml": YamlParser,
     }
 
     @classmethod

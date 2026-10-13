@@ -7,6 +7,7 @@ from src.utils import db_path_for_index_root, get_sql_parse_config_dir
 TABLE_BATCH_MAP = {
     "directories",
     "files",
+    "symbols",
 }
 
 
@@ -101,7 +102,10 @@ class CodeDB:
 
     def get_files_snapshot(self) -> dict[Path, dict[str, Any]]:
         cursor = self.connection.execute(
-            "SELECT id, directory_id, path, content_hash, line_count, is_test FROM files"
+            """
+            SELECT id, directory_id, path, content_hash, line_count, symbol_count, is_test
+            FROM files
+            """
         )
         return {
             Path(row["path"]): {
@@ -110,6 +114,7 @@ class CodeDB:
                 "seen": False,
                 "content_hash": row["content_hash"],
                 "line_count": row["line_count"],
+                "symbol_count": row["symbol_count"],
                 "is_test": bool(row["is_test"]),
             }
             for row in cursor
@@ -117,7 +122,17 @@ class CodeDB:
 
     def delete_files(self, files: dict[Path, dict[str, Any]]) -> None:
         file_ids = [file["id"] for file in files.values() if not file["seen"]]
+        self.delete_symbols_for_files(file_ids)
         self.delete_ids("files", file_ids)
+
+    def delete_symbols_for_files(self, file_ids: list[int]) -> None:
+        if not file_ids:
+            return
+        placeholders = ",".join(["?"] * len(file_ids))
+        self.exec_tran(
+            f"DELETE FROM symbols WHERE file_id IN ({placeholders})",  # noqa: S608
+            tuple(file_ids),
+        )
 
     def bulk_insert(self, db_batches: dict[str, list[dict[str, Any]]]) -> None:
         directories = db_batches["directories"]
@@ -136,11 +151,25 @@ class CodeDB:
                 """
                 INSERT OR REPLACE INTO files
                 (id, directory_id, name, path, normalized_path, language,
-                 content_hash, line_count, is_test)
+                 content_hash, line_count, symbol_count, is_test)
                 VALUES (:id, :directory_id, :name, :path, :normalized_path,
-                        :language, :content_hash, :line_count, :is_test)
+                        :language, :content_hash, :line_count, :symbol_count,
+                        :is_test)
                 """,
                 files,
+            )
+
+            self.connection.executemany(
+                """
+                INSERT OR REPLACE INTO symbols
+                (id, file_id, parent_id, name, qualified_name, kind, line_start,
+                 line_end, line_count, data_type, position_index, signature, 
+                 docstring, modifiers, language)
+                VALUES (:id, :file_id, :parent_id, :name, :qualified_name, :kind,
+                        :line_start, :line_end, :line_count, :data_type, :position_index,
+                        :signature, :docstring, :modifiers, :language)
+                """,
+                db_batches["symbols"],
             )
 
     def close(self):
