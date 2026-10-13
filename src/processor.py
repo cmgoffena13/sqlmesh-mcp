@@ -143,7 +143,9 @@ class CodeProcessor:
             parser = ParserFactory.get_parser(
                 FILE_EXTENSION_MAPPING[file_extension], self.assigner, self.db
             )
-            symbols, _ = parser.parse(file_id, file_bytes)
+            parser.dialect = self.dialect
+            parser.catalog = self.catalog
+            symbols, _references = parser.parse(file_id, file_bytes)
             n = len(symbols)
             file_row["symbol_count"] = n
             snap["symbol_count"] = n

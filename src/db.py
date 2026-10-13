@@ -125,6 +125,31 @@ class CodeDB:
         self.delete_symbols_for_files(file_ids)
         self.delete_ids("files", file_ids)
 
+    def get_symbols_snapshot(self, file_id: int) -> dict[tuple[str, str], dict[str, Any]]:
+        rows = self.connection.execute(
+            """
+            SELECT id, qualified_name, kind, line_start, line_end
+            FROM symbols
+            WHERE file_id = ?
+            """,
+            (file_id,),
+        ).fetchall()
+        return {
+            (row["qualified_name"], row["kind"]): {
+                "id": row["id"],
+                "line_start": row["line_start"],
+                "line_end": row["line_end"],
+                "seen": False,
+            }
+            for row in rows
+        }
+
+    def delete_symbols(self, symbols_snapshot: dict[tuple[str, str], dict[str, Any]]) -> None:
+        symbol_ids = [symbol["id"] for symbol in symbols_snapshot.values() if not symbol["seen"]]
+        if not symbol_ids:
+            return
+        self.delete_ids("symbols", symbol_ids)
+
     def delete_symbols_for_files(self, file_ids: list[int]) -> None:
         if not file_ids:
             return
