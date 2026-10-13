@@ -16,6 +16,7 @@ INDEX_ALWAYS_IGNORE_NAMES = frozenset(
         ".ruff_cache",
         ".mypy_cache",
         ".vscode",
+        ".cache",
     }
 )
 
