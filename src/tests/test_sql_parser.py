@@ -16,7 +16,7 @@ def test_sql_parser_counts_statements_after_the_model_header(tmp_path: Path) -> 
     parser = SqlParser(GlobalIDAssigner(db), db)
     try:
         parsed = parser.parse(1, (_FIXTURES / "model.sql").read_bytes())
-        assert parsed == ParsedSql(file_id=1, statement_count=1)
+        assert parsed == ParsedSql(file_id=1, statement_count=2, model_names=["pkg.mod"])
     finally:
         db.close()
 

@@ -145,7 +145,7 @@ def test_full_reparses_sql_and_incremental_parses_changed_files(
 
     def record(_self: SqlParser, file_id: int, file_bytes: bytes) -> ParsedSql:
         calls.append(len(file_bytes))
-        return ParsedSql(file_id=file_id, statement_count=0)
+        return ParsedSql(file_id=file_id, statement_count=0, model_names=[])
 
     monkeypatch.setattr(SqlParser, "parse", record)
     _write_nested_fixture(tmp_path)

@@ -7,6 +7,7 @@ from src.db import CodeDB
 class ParsedSql(BaseModel):
     file_id: int
     statement_count: int
+    model_names: list[str]
 
 
 class ParserBase:
